@@ -5,7 +5,7 @@ authors = ["Szabolcs Berecz <szabolcs.berecz@gmail.com>"]
 
 [dependencies]
 approx = "0.1.1"
-nalgebra = "0.13.1"
+nalgebra = "0.14.1"
 num-complex = "0.1.41"
 num-traits = "0.1.41"
-rand = "0.3.19"
+rand = "0.4.2"
