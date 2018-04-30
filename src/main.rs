@@ -109,7 +109,7 @@ struct QState {
 }
 
 impl QState {
-    fn from_independent_qubits(qubits: Vec<Qubit>) -> QState {
+    fn from_independent_qubits(qubits: &[Qubit]) -> QState {
         assert!(!qubits.is_empty());
         let state_len = 1usize << qubits.len();
         let qstate = {
@@ -166,8 +166,8 @@ impl QState {
         let p: Vec<_> = self.state.iter().map(|c| c.norm_sqr()).collect();
         let v = rng.next_f64();
         let mut p_acc = 0f64;
-        for i in 0..p.len() {
-            p_acc += p[i];
+        for (i, item) in p.iter().enumerate() {
+            p_acc += item;
             if v < p_acc {
                 let mut result = n_to_bitvec(i, self.qubit_count());
                 result.reverse(); // FIXME this is fishy
@@ -180,7 +180,12 @@ impl QState {
 
 fn n_to_bitvec(n: usize, bits: u32) -> Vec<bool> {
     assert!(bits > 0);
-    assert!(1usize << bits > n, "Cannot represent {} with {} bits", n, bits);
+    assert!(
+        1usize << bits > n,
+        "Cannot represent {} with {} bits",
+        n,
+        bits
+    );
     (0..bits).map(|i| n >> i & 1 == 1).collect()
 }
 
@@ -220,7 +225,7 @@ impl QGate1 {
     fn phase_shift(phi: f64) -> QGate1 {
         QGate1(Matrix2::from_rows(&[
             RowVector2::new(1f64.into(), 0f64.into()),
-            RowVector2::new(0f64.into(), Complex64::from_polar(&1f64, &phi.into())),
+            RowVector2::new(0f64.into(), Complex64::from_polar(&1f64, &phi)),
         ]))
     }
 }
@@ -252,7 +257,6 @@ impl QGate2 {
 mod test {
     use super::*;
 
-
     impl ApproxEq for Qubit {
         type Epsilon = <f64 as ApproxEq>::Epsilon;
 
@@ -280,7 +284,12 @@ mod test {
                 && self.b.im.relative_eq(&other.b.im, epsilon, max_relative)
         }
 
-        fn ulps_eq(&self, other: &Self, epsilon: <Self as ApproxEq>::Epsilon, max_ulps: u32) -> bool {
+        fn ulps_eq(
+            &self,
+            other: &Self,
+            epsilon: <Self as ApproxEq>::Epsilon,
+            max_ulps: u32,
+        ) -> bool {
             self.a.re.ulps_eq(&other.a.re, epsilon, max_ulps)
                 && self.a.im.ulps_eq(&other.a.im, epsilon, max_ulps)
                 && self.b.re.ulps_eq(&other.b.re, epsilon, max_ulps)
@@ -315,7 +324,12 @@ mod test {
             })
         }
 
-        fn ulps_eq(&self, other: &Self, epsilon: <Self as ApproxEq>::Epsilon, max_ulps: u32) -> bool {
+        fn ulps_eq(
+            &self,
+            other: &Self,
+            epsilon: <Self as ApproxEq>::Epsilon,
+            max_ulps: u32,
+        ) -> bool {
             self.state.iter().zip(other.state.iter()).all(|(c0, c1)| {
                 c0.re.ulps_eq(&c1.re, epsilon, max_ulps) && c0.im.ulps_eq(&c1.im, epsilon, max_ulps)
             })
@@ -358,7 +372,8 @@ mod test {
                     max_ulps: u32,
                 ) -> bool {
                     self.0.iter().zip(other.0.iter()).all(|(a, b)| {
-                        a.re.ulps_eq(&b.re, epsilon, max_ulps) && a.im.ulps_eq(&b.im, epsilon, max_ulps)
+                        a.re.ulps_eq(&b.re, epsilon, max_ulps)
+                            && a.im.ulps_eq(&b.im, epsilon, max_ulps)
                     })
                 }
             }
@@ -369,11 +384,10 @@ mod test {
     impl_qgate_relative_eq!(QGate2);
 
     fn mk_qstate(qs: &[bool]) -> QState {
-        QState::from_independent_qubits(
-            qs.iter()
-                .map(|&b| if b { Qubit::ONE } else { Qubit::ZERO })
-                .collect(),
-        )
+        let v: Vec<_> = qs.iter()
+            .map(|&b| if b { Qubit::ONE } else { Qubit::ZERO })
+            .collect();
+        QState::from_independent_qubits(&v)
     }
 
     #[test]
@@ -404,10 +418,18 @@ mod test {
 
     struct ConstF64Rng(f64);
     impl Rng for ConstF64Rng {
-        fn next_u32(&mut self) -> u32 { panic!() }
-        fn next_u64(&mut self) -> u64 { panic!() }
-        fn next_f32(&mut self) -> f32 { panic!() }
-        fn next_f64(&mut self) -> f64 { self.0 }
+        fn next_u32(&mut self) -> u32 {
+            panic!()
+        }
+        fn next_u64(&mut self) -> u64 {
+            panic!()
+        }
+        fn next_f32(&mut self) -> f32 {
+            panic!()
+        }
+        fn next_f64(&mut self) -> f64 {
+            self.0
+        }
     }
 
     #[test]
@@ -416,7 +438,7 @@ mod test {
 
         fn measure(qubit: Qubit, n: usize, mut rng: &mut Rng) -> Vec<bool> {
             (0..n)
-                .map(|_| QState::from_independent_qubits(vec![qubit.clone()]).measure(&mut rng))
+                .map(|_| QState::from_independent_qubits(&vec![qubit.clone()]).measure(&mut rng))
                 .map(|v| {
                     assert_eq!(v.len(), 1);
                     v[0]
@@ -516,8 +538,8 @@ mod test {
 
     #[test]
     fn test_hadamard() {
-        let qs0 = QState::from_independent_qubits(vec![Qubit::ZERO]);
-        let qs1 = QState::from_independent_qubits(vec![Qubit::ONE]);
+        let qs0 = QState::from_independent_qubits(&vec![Qubit::ZERO]);
+        let qs1 = QState::from_independent_qubits(&vec![Qubit::ONE]);
 
         let qs0r = qs0.apply(&QGate1::hadamard());
         let qs1r = qs1.apply(&QGate1::hadamard());
@@ -535,7 +557,7 @@ mod test {
     #[test]
     fn test_swap() {
         let mut rng = rand::thread_rng();
-        let qs = QState::from_independent_qubits(vec![Qubit::ZERO, Qubit::ONE]);
+        let qs = QState::from_independent_qubits(&vec![Qubit::ZERO, Qubit::ONE]);
         assert_eq!(
             qs.apply2(&QGate2::swap()).measure(&mut rng),
             vec![true, false]
@@ -545,7 +567,7 @@ mod test {
     #[test]
     fn test_cnot() {
         fn check_cnot(qubits: Vec<Qubit>, expected: Vec<bool>, mut rng: &mut Rng) {
-            let qs = QState::from_independent_qubits(qubits);
+            let qs = QState::from_independent_qubits(&qubits);
             let result = qs.apply2(&QGate2::cnot()).measure(&mut rng);
             assert_eq!(result, expected);
         }
