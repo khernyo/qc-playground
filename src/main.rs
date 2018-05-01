@@ -169,9 +169,7 @@ impl QState {
         for (i, item) in p.iter().enumerate() {
             p_acc += item;
             if v < p_acc {
-                let mut result = n_to_bitvec(i, self.qubit_count());
-                result.reverse(); // FIXME this is fishy
-                return result;
+                return n_to_bitvec(i, self.qubit_count());
             }
         }
         panic!();
@@ -186,7 +184,7 @@ fn n_to_bitvec(n: usize, bits: u32) -> Vec<bool> {
         n,
         bits
     );
-    (0..bits).map(|i| n >> i & 1 == 1).collect()
+    (0..bits).rev().map(|i| n >> i & 1 == 1).collect()
 }
 
 #[derive(Debug)]
@@ -469,6 +467,19 @@ mod test {
             count(&measure(Qubit::MINUS, n, &mut ConstF64Rng(0.6)), true),
             n
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion failed: bits > 0")]
+    fn test_n_to_bitvec_0_bits() {
+        n_to_bitvec(0, 0);
+    }
+
+    #[test]
+    fn test_n_to_bitvec() {
+        assert_eq!(n_to_bitvec(1, 1), vec![true]);
+        assert_eq!(n_to_bitvec(5, 4), vec![false, true, false, true]);
+        assert_eq!(n_to_bitvec(22, 5), vec![true, false, true, true, false]);
     }
 
     #[test]
