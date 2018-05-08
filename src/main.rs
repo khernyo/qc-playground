@@ -10,6 +10,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use approx::ApproxEq;
 use nalgebra::*;
 use num_complex::Complex64;
+use num_traits::One;
 use rand::Rng;
 
 fn main() {
@@ -110,25 +111,13 @@ struct QState {
 
 impl QState {
     fn from_independent_qubits(qubits: &[Qubit]) -> QState {
-        assert!(!qubits.is_empty());
-        let state_len = 1usize << qubits.len();
-        let qstate = {
-            fn probability_of_state(state_idx: usize, qubits: &[Qubit]) -> Complex64 {
-                let mut p = Complex64::new(1f64, 0f64);
-                for i in 0..qubits.len() {
-                    let b = state_idx >> i & 1;
-                    let qubit = &qubits[qubits.len() - i - 1];
-                    let q = if b == 0 { qubit.a } else { qubit.b };
-                    p *= q;
-                }
-                p
-            }
-            let r: Vec<_> = (0..state_len)
-                .map(|i| probability_of_state(i, &qubits))
-                .collect();
-            QState {
-                state: DVector::from_row_slice(state_len, &r),
-            }
+        let qstate = QState {
+            state: qubits
+                .iter()
+                .map(|q| DVector::from_row_slice(2, &[q.a, q.b]))
+                .fold(DVector::from_element(1, Complex64::one()), |acc, elem| {
+                    acc.kronecker(&elem)
+                }),
         };
         assert_eq!(qstate.qubit_count() as usize, qubits.len());
         qstate.validate();
