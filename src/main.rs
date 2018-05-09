@@ -230,6 +230,11 @@ impl QState {
         }
         panic!();
     }
+
+    #[allow(unused_variables)]
+    fn measure_one(self, index: u32, rng: &mut Rng) -> (bool, QState) {
+        unimplemented!()
+    }
 }
 
 fn n_to_bitvec(n: usize, bits: u32) -> Vec<bool> {
