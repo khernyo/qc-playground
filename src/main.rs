@@ -1,3 +1,4 @@
+extern crate alga;
 #[macro_use]
 extern crate approx;
 extern crate nalgebra;
@@ -6,7 +7,9 @@ extern crate num_traits;
 extern crate rand;
 
 use std::fmt::{self, Debug, Display, Formatter};
+use std::ops::{Add, Div, Mul, Sub};
 
+use alga::general::{ClosedDiv, ClosedMul};
 use approx::ApproxEq;
 use nalgebra::*;
 use num_complex::Complex64;
@@ -100,6 +103,70 @@ impl Display for Qubit {
             write!(f, "|1>")
         } else {
             write!(f, "{}|0> + {}|1>", self.a, self.b)
+        }
+    }
+}
+
+#[derive(Debug)]
+struct QStateExpr {
+    state: DVector<Complex64>,
+}
+
+impl QStateExpr {
+    fn from_qubits(qubits: &[Qubit]) -> QStateExpr {
+        QStateExpr {
+            state: qubits
+                .iter()
+                .map(|q| DVector::from_row_slice(2, &[q.a, q.b]))
+                .fold(DVector::from_element(1, Complex64::one()), |acc, elem| {
+                    acc.kronecker(&elem)
+                }),
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'b QStateExpr> for &'a QStateExpr {
+    type Output = QStateExpr;
+
+    fn add(self, rhs: &'b QStateExpr) -> QStateExpr {
+        QStateExpr {
+            state: &self.state + &rhs.state,
+        }
+    }
+}
+
+impl<'a, T> Div<T> for &'a QStateExpr
+where
+    T: Scalar + ClosedDiv + Into<Complex64>,
+{
+    type Output = QStateExpr;
+
+    fn div(self, rhs: T) -> QStateExpr {
+        QStateExpr {
+            state: &self.state / rhs.into(),
+        }
+    }
+}
+
+impl<'a, T> Mul<T> for &'a QStateExpr
+where
+    T: Scalar + ClosedMul + Into<Complex64>,
+{
+    type Output = QStateExpr;
+
+    fn mul(self, rhs: T) -> QStateExpr {
+        QStateExpr {
+            state: &self.state * rhs.into(),
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b QStateExpr> for &'a QStateExpr {
+    type Output = QStateExpr;
+
+    fn sub(self, rhs: &'b QStateExpr) -> QStateExpr {
+        QStateExpr {
+            state: &self.state - &rhs.state,
         }
     }
 }
@@ -582,5 +649,24 @@ mod test {
     #[test]
     fn test_pauli_z_eq_phase_shift_pi() {
         assert_relative_eq!(QGate1::pauli_z(), QGate1::phase_shift(std::f64::consts::PI));
+    }
+
+    #[test]
+    fn test_qstateexpr() {
+        let qse = &(&QStateExpr::from_qubits(&[Qubit::ZERO, Qubit::ONE])
+            - &QStateExpr::from_qubits(&[Qubit::ONE, Qubit::ZERO]))
+            * std::f64::consts::FRAC_1_SQRT_2;
+        let expected = DVector::from_row_slice(
+            4,
+            &vec![
+                0f64,
+                std::f64::consts::FRAC_1_SQRT_2,
+                -std::f64::consts::FRAC_1_SQRT_2,
+                0f64,
+            ].iter()
+                .map(|x| x.into())
+                .collect() as &Vec<Complex64>,
+        );
+        assert_eq!(qse.state, expected)
     }
 }
