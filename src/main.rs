@@ -13,7 +13,7 @@ use alga::general::{ClosedDiv, ClosedMul};
 use approx::ApproxEq;
 use nalgebra::*;
 use num_complex::Complex64;
-use num_traits::One;
+use num_traits::{One, Zero};
 use rand::Rng;
 
 fn main() {
@@ -195,7 +195,11 @@ impl QState {
     }
 
     fn validate(&self) {
-        assert_relative_eq!(self.state.iter().map(|c| c.norm_sqr()).sum(), 1f64)
+        assert_relative_eq!(
+            self.state.iter().map(|c| c.norm_sqr()).sum(),
+            1f64,
+            max_relative = 0.000000000000001f64
+        )
     }
 
     fn qubit_count(&self) -> u32 {
@@ -258,6 +262,16 @@ impl Debug for QGate {
 }
 
 impl QGate {
+    fn identity() -> QGate {
+        let l = Complex64::one();
+        let o = Complex64::zero();
+        let m: DMatrix<Complex64> = DMatrix::from_rows(&[
+            RowDVector::from_row_slice(2, &[l, o]),
+            RowDVector::from_row_slice(2, &[o, l]),
+        ]);
+        QGate(m)
+    }
+
     fn hadamard() -> QGate {
         let m: DMatrix<Complex64> = DMatrix::from_rows(&[
             RowDVector::from_row_slice(2, &[1f64.into(), 1f64.into()]),
@@ -310,6 +324,11 @@ impl QGate {
             RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 0f64.into(), 1f64.into()]),
             RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 1f64.into(), 0f64.into()]),
         ]))
+    }
+
+    /// Compose quantum gates to act on more qubits in parallel
+    fn par(&self, rhs: &QGate) -> QGate {
+        QGate(self.0.kronecker(&rhs.0))
     }
 }
 
@@ -677,5 +696,94 @@ mod test {
                 .collect() as &Vec<Complex64>,
         );
         assert_eq!(qse.state, expected)
+    }
+
+    #[test]
+    fn test_gate_identity_identity() {
+        let identity = QGate::identity();
+        let identity_sqr = identity.par(&identity);
+        let l = Complex64::one();
+        let o = Complex64::zero();
+        let expected = QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(4, &[l, o, o, o]),
+            RowDVector::from_row_slice(4, &[o, l, o, o]),
+            RowDVector::from_row_slice(4, &[o, o, l, o]),
+            RowDVector::from_row_slice(4, &[o, o, o, l]),
+        ]));
+        assert_relative_eq!(identity_sqr, expected);
+
+        let qs = QStateExpr::from_qubits(&vec![Qubit::ZERO, Qubit::ONE]).eval();
+        let qsr = qs.apply(&identity_sqr);
+        assert_relative_eq!(
+            qsr,
+            QStateExpr::from_qubits(&vec![Qubit::ZERO, Qubit::ONE]).eval()
+        );
+    }
+
+    #[test]
+    fn test_gate_hadamard_identity() {
+        let hadamard = QGate::hadamard();
+        let identity = QGate::identity();
+        let hadamard_identity = hadamard.par(&identity);
+        let v = Complex64::new(std::f64::consts::FRAC_1_SQRT_2, 0f64);
+        let o = Complex64::zero();
+        let expected = QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(4, &[v, o, v, o]),
+            RowDVector::from_row_slice(4, &[o, v, o, v]),
+            RowDVector::from_row_slice(4, &[v, o, -v, o]),
+            RowDVector::from_row_slice(4, &[o, v, o, -v]),
+        ]));
+        assert_relative_eq!(hadamard_identity, expected);
+
+        let qs = QStateExpr::from_qubits(&vec![Qubit::ZERO, Qubit::ONE]).eval();
+        let qsr = qs.apply(&hadamard_identity);
+        assert_relative_eq!(
+            qsr,
+            QStateExpr::from_qubits(&vec![Qubit::PLUS, Qubit::ONE]).eval()
+        );
+    }
+
+    #[test]
+    fn test_gate_identity_hadamard() {
+        let hadamard = QGate::hadamard();
+        let identity = QGate::identity();
+        let identity_hadamard = identity.par(&hadamard);
+        let v = Complex64::new(std::f64::consts::FRAC_1_SQRT_2, 0f64);
+        let o = Complex64::zero();
+        let expected = QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(4, &[v, v, o, o]),
+            RowDVector::from_row_slice(4, &[v, -v, o, o]),
+            RowDVector::from_row_slice(4, &[o, o, v, v]),
+            RowDVector::from_row_slice(4, &[o, o, v, -v]),
+        ]));
+        assert_relative_eq!(identity_hadamard, expected);
+
+        let qs = QStateExpr::from_qubits(&vec![Qubit::ZERO, Qubit::ONE]).eval();
+        let qsr = qs.apply(&identity_hadamard);
+        assert_relative_eq!(
+            qsr,
+            QStateExpr::from_qubits(&vec![Qubit::ZERO, Qubit::MINUS]).eval()
+        );
+    }
+
+    #[test]
+    fn test_gate_hadamard_hadamard() {
+        let hadamard = QGate::hadamard();
+        let hadamard_sqr = hadamard.par(&hadamard);
+        let v = Complex64::new(0.5f64, 0f64);
+        let expected = QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(4, &[v, v, v, v]),
+            RowDVector::from_row_slice(4, &[v, -v, v, -v]),
+            RowDVector::from_row_slice(4, &[v, v, -v, -v]),
+            RowDVector::from_row_slice(4, &[v, -v, -v, v]),
+        ]));
+        assert_relative_eq!(hadamard_sqr, expected);
+
+        let qs = QStateExpr::from_qubits(&vec![Qubit::ZERO, Qubit::ONE]).eval();
+        let qsr = qs.apply(&hadamard_sqr);
+        assert_relative_eq!(
+            qsr,
+            QStateExpr::from_qubits(&vec![Qubit::PLUS, Qubit::MINUS]).eval()
+        );
     }
 }
