@@ -197,21 +197,15 @@ impl QState {
         qubit_count(&self.state)
     }
 
-    fn apply(self, gate: &QGate1) -> QState {
-        fn to_dynamic(m: &Matrix2<Complex64>) -> DMatrix<Complex64> {
-            m.clone().resize(m.nrows(), m.ncols(), Complex64::default())
-        }
+    fn apply(self, gate: &QGate) -> QState {
+        assert!(
+            gate.0.is_square(),
+            "Matrix is not square: {:?}",
+            gate.0.shape()
+        );
+        assert_eq!(gate.0.nrows(), self.state.len());
         QState {
-            state: to_dynamic(&gate.0) * self.state,
-        }
-    }
-
-    fn apply2(self, gate: &QGate2) -> QState {
-        fn to_dynamic(m: &Matrix4<Complex64>) -> DMatrix<Complex64> {
-            m.clone().resize(m.nrows(), m.ncols(), Complex64::default())
-        }
-        QState {
-            state: to_dynamic(&gate.0) * self.state,
+            state: &gate.0 * self.state,
         }
     }
 
@@ -251,65 +245,60 @@ fn qubit_count(state: &DVector<Complex64>) -> u32 {
 }
 
 #[derive(Debug)]
-struct QGate1(Matrix2<Complex64>);
+struct QGate(DMatrix<Complex64>);
 
-impl QGate1 {
-    fn hadamard() -> QGate1 {
-        let m: Matrix2<Complex64> = Matrix2::from_rows(&[
-            RowVector2::new(1f64.into(), 1f64.into()),
-            RowVector2::new(1f64.into(), (-1f64).into()),
+impl QGate {
+    fn hadamard() -> QGate {
+        let m: DMatrix<Complex64> = DMatrix::from_rows(&[
+            RowDVector::from_row_slice(2, &[1f64.into(), 1f64.into()]),
+            RowDVector::from_row_slice(2, &[1f64.into(), (-1f64).into()]),
         ]);
-        QGate1(m / Complex64::new(2f64.sqrt(), 0f64))
+        QGate(m / Complex64::new(2f64.sqrt(), 0f64))
     }
 
-    fn pauli_x() -> QGate1 {
-        QGate1(Matrix2::from_rows(&[
-            RowVector2::new(0f64.into(), 1f64.into()),
-            RowVector2::new(1f64.into(), 0f64.into()),
+    fn pauli_x() -> QGate {
+        QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(2, &[0f64.into(), 1f64.into()]),
+            RowDVector::from_row_slice(2, &[1f64.into(), 0f64.into()]),
         ]))
     }
 
-    fn pauli_y() -> QGate1 {
-        QGate1(Matrix2::from_rows(&[
-            RowVector2::new(0f64.into(), -Complex64::i()),
-            RowVector2::new(Complex64::i(), 0f64.into()),
+    fn pauli_y() -> QGate {
+        QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(2, &[0f64.into(), -Complex64::i()]),
+            RowDVector::from_row_slice(2, &[Complex64::i(), 0f64.into()]),
         ]))
     }
 
-    fn pauli_z() -> QGate1 {
-        QGate1(Matrix2::from_rows(&[
-            RowVector2::new(1f64.into(), 0f64.into()),
-            RowVector2::new(0f64.into(), (-1f64).into()),
+    fn pauli_z() -> QGate {
+        QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(2, &[1f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(2, &[0f64.into(), (-1f64).into()]),
         ]))
     }
 
-    fn phase_shift(phi: f64) -> QGate1 {
-        QGate1(Matrix2::from_rows(&[
-            RowVector2::new(1f64.into(), 0f64.into()),
-            RowVector2::new(0f64.into(), Complex64::from_polar(&1f64, &phi)),
-        ]))
-    }
-}
-
-#[derive(Debug)]
-struct QGate2(Matrix4<Complex64>);
-
-impl QGate2 {
-    fn swap() -> QGate2 {
-        QGate2(Matrix4::from_rows(&[
-            RowVector4::new(1f64.into(), 0f64.into(), 0f64.into(), 0f64.into()),
-            RowVector4::new(0f64.into(), 0f64.into(), 1f64.into(), 0f64.into()),
-            RowVector4::new(0f64.into(), 1f64.into(), 0f64.into(), 0f64.into()),
-            RowVector4::new(0f64.into(), 0f64.into(), 0f64.into(), 1f64.into()),
+    fn phase_shift(phi: f64) -> QGate {
+        QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(2, &[1f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(2, &[0f64.into(), Complex64::from_polar(&1f64, &phi)]),
         ]))
     }
 
-    fn cnot() -> QGate2 {
-        QGate2(Matrix4::from_rows(&[
-            RowVector4::new(1f64.into(), 0f64.into(), 0f64.into(), 0f64.into()),
-            RowVector4::new(0f64.into(), 1f64.into(), 0f64.into(), 0f64.into()),
-            RowVector4::new(0f64.into(), 0f64.into(), 0f64.into(), 1f64.into()),
-            RowVector4::new(0f64.into(), 0f64.into(), 1f64.into(), 0f64.into()),
+    fn swap() -> QGate {
+        QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(4, &[1f64.into(), 0f64.into(), 0f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 1f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(4, &[0f64.into(), 1f64.into(), 0f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 0f64.into(), 1f64.into()]),
+        ]))
+    }
+
+    fn cnot() -> QGate {
+        QGate(DMatrix::from_rows(&[
+            RowDVector::from_row_slice(4, &[1f64.into(), 0f64.into(), 0f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(4, &[0f64.into(), 1f64.into(), 0f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 0f64.into(), 1f64.into()]),
+            RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 1f64.into(), 0f64.into()]),
         ]))
     }
 }
@@ -441,8 +430,7 @@ mod test {
         };
     }
 
-    impl_qgate_relative_eq!(QGate1);
-    impl_qgate_relative_eq!(QGate2);
+    impl_qgate_relative_eq!(QGate);
 
     fn mk_qstate(qs: &[bool]) -> QState {
         let v: Vec<_> = qs.iter()
@@ -619,8 +607,8 @@ mod test {
         let qs0 = QStateExpr::from_qubits(&vec![Qubit::ZERO]).eval();
         let qs1 = QStateExpr::from_qubits(&vec![Qubit::ONE]).eval();
 
-        let qs0r = qs0.apply(&QGate1::hadamard());
-        let qs1r = qs1.apply(&QGate1::hadamard());
+        let qs0r = qs0.apply(&QGate::hadamard());
+        let qs1r = qs1.apply(&QGate::hadamard());
 
         assert_relative_eq!(
             Qubit::PLUS,
@@ -637,7 +625,7 @@ mod test {
         let mut rng = rand::thread_rng();
         let qs = QStateExpr::from_qubits(&vec![Qubit::ZERO, Qubit::ONE]).eval();
         assert_eq!(
-            qs.apply2(&QGate2::swap()).measure(&mut rng),
+            qs.apply(&QGate::swap()).measure(&mut rng),
             vec![true, false]
         );
     }
@@ -646,7 +634,7 @@ mod test {
     fn test_cnot() {
         fn check_cnot(qubits: Vec<Qubit>, expected: Vec<bool>, mut rng: &mut Rng) {
             let qs = QStateExpr::from_qubits(&qubits).eval();
-            let result = qs.apply2(&QGate2::cnot()).measure(&mut rng);
+            let result = qs.apply(&QGate::cnot()).measure(&mut rng);
             assert_eq!(result, expected);
         }
         let mut rng = rand::thread_rng();
@@ -659,7 +647,7 @@ mod test {
 
     #[test]
     fn test_pauli_z_eq_phase_shift_pi() {
-        assert_relative_eq!(QGate1::pauli_z(), QGate1::phase_shift(std::f64::consts::PI));
+        assert_relative_eq!(QGate::pauli_z(), QGate::phase_shift(std::f64::consts::PI));
     }
 
     #[test]
