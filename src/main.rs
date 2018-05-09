@@ -177,9 +177,14 @@ impl<'a, 'b> Sub<&'b QStateExpr> for &'a QStateExpr {
     }
 }
 
-#[derive(Debug)]
 struct QState {
     state: DVector<Complex64>,
+}
+
+impl Debug for QState {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
+        write!(f, "QState({})", self.state)
+    }
 }
 
 impl QState {
@@ -244,8 +249,13 @@ fn qubit_count(state: &DVector<Complex64>) -> u32 {
     state.len().trailing_zeros()
 }
 
-#[derive(Debug)]
 struct QGate(DMatrix<Complex64>);
+
+impl Debug for QGate {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
+        write!(f, "QGate({})", self.0)
+    }
+}
 
 impl QGate {
     fn hadamard() -> QGate {
