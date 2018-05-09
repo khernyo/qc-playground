@@ -114,14 +114,20 @@ struct QStateExpr {
 
 impl QStateExpr {
     fn from_qubits(qubits: &[Qubit]) -> QStateExpr {
-        QStateExpr {
+        let expr = QStateExpr {
             state: qubits
                 .iter()
                 .map(|q| DVector::from_row_slice(2, &[q.a, q.b]))
                 .fold(DVector::from_element(1, Complex64::one()), |acc, elem| {
                     acc.kronecker(&elem)
                 }),
-        }
+        };
+        assert_eq!(qubit_count(&expr.state) as usize, qubits.len());
+        expr
+    }
+
+    fn eval(self) -> QState {
+        QState::from(self)
     }
 }
 
@@ -177,16 +183,8 @@ struct QState {
 }
 
 impl QState {
-    fn from_independent_qubits(qubits: &[Qubit]) -> QState {
-        let qstate = QState {
-            state: qubits
-                .iter()
-                .map(|q| DVector::from_row_slice(2, &[q.a, q.b]))
-                .fold(DVector::from_element(1, Complex64::one()), |acc, elem| {
-                    acc.kronecker(&elem)
-                }),
-        };
-        assert_eq!(qstate.qubit_count() as usize, qubits.len());
+    fn from(expr: QStateExpr) -> QState {
+        let qstate = QState { state: expr.state };
         qstate.validate();
         qstate
     }
@@ -196,8 +194,7 @@ impl QState {
     }
 
     fn qubit_count(&self) -> u32 {
-        assert!(self.state.len().is_power_of_two());
-        self.state.len().trailing_zeros()
+        qubit_count(&self.state)
     }
 
     fn apply(self, gate: &QGate1) -> QState {
@@ -246,6 +243,11 @@ fn n_to_bitvec(n: usize, bits: u32) -> Vec<bool> {
         bits
     );
     (0..bits).rev().map(|i| n >> i & 1 == 1).collect()
+}
+
+fn qubit_count(state: &DVector<Complex64>) -> u32 {
+    assert!(state.len().is_power_of_two());
+    state.len().trailing_zeros()
 }
 
 #[derive(Debug)]
@@ -446,7 +448,7 @@ mod test {
         let v: Vec<_> = qs.iter()
             .map(|&b| if b { Qubit::ONE } else { Qubit::ZERO })
             .collect();
-        QState::from_independent_qubits(&v)
+        QStateExpr::from_qubits(&v).eval()
     }
 
     #[test]
@@ -497,7 +499,11 @@ mod test {
 
         fn measure(qubit: Qubit, n: usize, mut rng: &mut Rng) -> Vec<bool> {
             (0..n)
-                .map(|_| QState::from_independent_qubits(&vec![qubit.clone()]).measure(&mut rng))
+                .map(|_| {
+                    QStateExpr::from_qubits(&vec![qubit.clone()])
+                        .eval()
+                        .measure(&mut rng)
+                })
                 .map(|v| {
                     assert_eq!(v.len(), 1);
                     v[0]
@@ -610,8 +616,8 @@ mod test {
 
     #[test]
     fn test_hadamard() {
-        let qs0 = QState::from_independent_qubits(&vec![Qubit::ZERO]);
-        let qs1 = QState::from_independent_qubits(&vec![Qubit::ONE]);
+        let qs0 = QStateExpr::from_qubits(&vec![Qubit::ZERO]).eval();
+        let qs1 = QStateExpr::from_qubits(&vec![Qubit::ONE]).eval();
 
         let qs0r = qs0.apply(&QGate1::hadamard());
         let qs1r = qs1.apply(&QGate1::hadamard());
@@ -629,7 +635,7 @@ mod test {
     #[test]
     fn test_swap() {
         let mut rng = rand::thread_rng();
-        let qs = QState::from_independent_qubits(&vec![Qubit::ZERO, Qubit::ONE]);
+        let qs = QStateExpr::from_qubits(&vec![Qubit::ZERO, Qubit::ONE]).eval();
         assert_eq!(
             qs.apply2(&QGate2::swap()).measure(&mut rng),
             vec![true, false]
@@ -639,7 +645,7 @@ mod test {
     #[test]
     fn test_cnot() {
         fn check_cnot(qubits: Vec<Qubit>, expected: Vec<bool>, mut rng: &mut Rng) {
-            let qs = QState::from_independent_qubits(&qubits);
+            let qs = QStateExpr::from_qubits(&qubits).eval();
             let result = qs.apply2(&QGate2::cnot()).measure(&mut rng);
             assert_eq!(result, expected);
         }
