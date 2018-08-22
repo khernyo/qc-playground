@@ -462,7 +462,8 @@ mod test {
     impl_qgate_relative_eq!(QGate);
 
     fn mk_qstate(qs: &[bool]) -> QState {
-        let v: Vec<_> = qs.iter()
+        let v: Vec<_> = qs
+            .iter()
             .map(|&b| if b { Qubit::ONE } else { Qubit::ZERO })
             .collect();
         QStateExpr::from_qubits(&v).eval()
@@ -520,12 +521,10 @@ mod test {
                     QStateExpr::from_qubits(&vec![qubit.clone()])
                         .eval()
                         .measure(&mut rng)
-                })
-                .map(|v| {
+                }).map(|v| {
                     assert_eq!(v.len(), 1);
                     v[0]
-                })
-                .collect()
+                }).collect()
         }
 
         fn count(bx: &[bool], b: bool) -> usize {
@@ -692,8 +691,8 @@ mod test {
                 -std::f64::consts::FRAC_1_SQRT_2,
                 0f64,
             ].iter()
-                .map(|x| x.into())
-                .collect() as &Vec<Complex64>,
+            .map(|x| x.into())
+            .collect() as &Vec<Complex64>,
         );
         assert_eq!(qse.state, expected)
     }
