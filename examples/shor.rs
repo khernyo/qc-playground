@@ -29,7 +29,7 @@ enum ShorResult {
 
 fn shor<F>(n: u32, pf: F) -> ShorResult
 where
-    F: Fn(&BigInt, &BigInt) -> u32,
+    F: Fn(&BigInt, &BigInt) -> usize,
 {
     println!("n = {}", n);
     assert!(n.is_odd());
@@ -52,7 +52,7 @@ where
                 println!("r is odd");
                 continue;
             } else {
-                let p = pow(a, (r / 2) as usize);
+                let p = pow(a, r / 2);
                 if is_congruent(&p, -1, &n_bi) {
                     println!("a^(r/2) ≡ -1 (mod n)");
                     continue;
@@ -76,18 +76,18 @@ fn is_congruent(a: &BigInt, b: i32, n: &BigInt) -> bool {
 /// Quantum period-finding
 ///
 /// Returns `r`, the period of `f(x) = a^x mod n`.
-fn qpf(a: &BigInt, n: &BigInt) -> u32 {
+fn qpf(a: &BigInt, n: &BigInt) -> usize {
     unimplemented!()
 }
 
 /// Classical period-finding
 ///
 /// Returns `r`, the period of `f(x) = a^x mod n`.
-fn cpf_naive(a: &BigInt, n: &BigInt) -> u32 {
-    const MAX: u32 = 1000;
+fn cpf_naive(a: &BigInt, n: &BigInt) -> usize {
+    const MAX: usize = 1000;
     let fv = |r| {
         (0..r * 2)
-            .map(|x| a.modpow(&x.into(), &n).to_u32().unwrap())
+            .map(|x| a.modpow(&x.into(), n).to_u32().unwrap())
             .collect::<Vec<_>>()
     };
     for r in 1..MAX {
@@ -100,11 +100,11 @@ fn cpf_naive(a: &BigInt, n: &BigInt) -> u32 {
     panic!("cpf_naive: a={} n={} v={:?}", a, n, fv(MAX));
 }
 
-fn check_period(v: &[u32], r: u32) -> bool {
+fn check_period(v: &[u32], r: usize) -> bool {
     assert_ne!(r, 0);
-    assert!(r <= v.len() as u32);
+    assert!(r <= v.len());
     let (i, j) = (0, r);
-    v.iter().zip(v.iter().skip(r as usize)).all(|(x, y)| x == y)
+    v.iter().zip(v.iter().skip(r)).all(|(x, y)| x == y)
 }
 
 #[cfg(test)]
