@@ -1,3 +1,5 @@
+#![feature(test)]
+
 extern crate num;
 extern crate num_bigint;
 extern crate rand;
@@ -170,5 +172,29 @@ mod tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod benches {
+    extern crate test;
+
+    use self::test::Bencher;
+
+    use super::*;
+
+    #[bench]
+    fn shor_cpf_naive_15(b: &mut Bencher) {
+        b.iter(|| shor(15, cpf_naive));
+    }
+
+    #[bench]
+    fn shor_cpf_naive_31(b: &mut Bencher) {
+        b.iter(|| shor(31, cpf_naive));
+    }
+
+    #[bench]
+    fn shor_cpf_naive_35(b: &mut Bencher) {
+        b.iter(|| shor(35, cpf_naive));
     }
 }
