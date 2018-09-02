@@ -7,6 +7,11 @@ authors = ["Szabolcs Berecz <szabolcs.berecz@gmail.com>"]
 alga = "0.5.3"
 approx = "0.1.1"
 nalgebra = "0.14.1"
+num = "0.1.41"
 num-complex = "0.1.41"
 num-traits = "0.1.41"
 rand = "0.4.2"
+
+[dev-dependencies]
+is_prime = "1.0.5"
+num-bigint = "0.1.41"
