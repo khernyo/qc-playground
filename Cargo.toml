@@ -6,7 +6,7 @@ authors = ["Szabolcs Berecz <szabolcs.berecz@gmail.com>"]
 [dependencies]
 alga = "0.5.3"
 approx = "0.1.1"
-nalgebra = "0.14.1"
+nalgebra = "0.16"
 num = "0.1.41"
 num-complex = "0.1.41"
 num-traits = "0.1.41"
