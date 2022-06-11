@@ -113,9 +113,9 @@ impl QStateExpr {
         let expr = QStateExpr {
             state: qubits
                 .iter()
-                .map(|q| DVector::from_row_slice(2, &[q.a, q.b]))
+                .map(|q| DVector::from_row_slice(&[q.a, q.b]))
                 .fold(DVector::from_element(1, Complex64::one()), |acc, elem| {
-                    acc.kronecker(&elem)
+                    acc.kronecker(&elem).into()
                 }),
         };
         assert_eq!(qubit_count(&expr.state) as usize, qubits.len());
@@ -179,7 +179,7 @@ struct QState {
 
 impl Debug for QState {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        write!(f, "QState({})", self.state)
+        write!(f, "QState({:?})", self.state)
     }
 }
 
@@ -253,7 +253,7 @@ struct QGate(DMatrix<Complex64>);
 
 impl Debug for QGate {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        write!(f, "QGate({})", self.0)
+        write!(f, "QGate({:?})", self.0)
     }
 }
 
@@ -262,63 +262,63 @@ impl QGate {
         let l = Complex64::one();
         let o = Complex64::zero();
         let m: DMatrix<Complex64> = DMatrix::from_rows(&[
-            RowDVector::from_row_slice(2, &[l, o]),
-            RowDVector::from_row_slice(2, &[o, l]),
+            RowDVector::from_row_slice(&[l, o]),
+            RowDVector::from_row_slice(&[o, l]),
         ]);
         QGate(m)
     }
 
     fn hadamard() -> QGate {
         let m: DMatrix<Complex64> = DMatrix::from_rows(&[
-            RowDVector::from_row_slice(2, &[1f64.into(), 1f64.into()]),
-            RowDVector::from_row_slice(2, &[1f64.into(), (-1f64).into()]),
+            RowDVector::from_row_slice(&[1f64.into(), 1f64.into()]),
+            RowDVector::from_row_slice(&[1f64.into(), (-1f64).into()]),
         ]);
         QGate(m / Complex64::new(2f64.sqrt(), 0f64))
     }
 
     fn pauli_x() -> QGate {
         QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(2, &[0f64.into(), 1f64.into()]),
-            RowDVector::from_row_slice(2, &[1f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), 1f64.into()]),
+            RowDVector::from_row_slice(&[1f64.into(), 0f64.into()]),
         ]))
     }
 
     fn pauli_y() -> QGate {
         QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(2, &[0f64.into(), -Complex64::i()]),
-            RowDVector::from_row_slice(2, &[Complex64::i(), 0f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), -Complex64::i()]),
+            RowDVector::from_row_slice(&[Complex64::i(), 0f64.into()]),
         ]))
     }
 
     fn pauli_z() -> QGate {
         QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(2, &[1f64.into(), 0f64.into()]),
-            RowDVector::from_row_slice(2, &[0f64.into(), (-1f64).into()]),
+            RowDVector::from_row_slice(&[1f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), (-1f64).into()]),
         ]))
     }
 
     fn phase_shift(phi: f64) -> QGate {
         QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(2, &[1f64.into(), 0f64.into()]),
-            RowDVector::from_row_slice(2, &[0f64.into(), Complex64::from_polar(&1f64, &phi)]),
+            RowDVector::from_row_slice(&[1f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), Complex64::from_polar(&1f64, &phi)]),
         ]))
     }
 
     fn swap() -> QGate {
         QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(4, &[1f64.into(), 0f64.into(), 0f64.into(), 0f64.into()]),
-            RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 1f64.into(), 0f64.into()]),
-            RowDVector::from_row_slice(4, &[0f64.into(), 1f64.into(), 0f64.into(), 0f64.into()]),
-            RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 0f64.into(), 1f64.into()]),
+            RowDVector::from_row_slice(&[1f64.into(), 0f64.into(), 0f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), 0f64.into(), 1f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), 1f64.into(), 0f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), 0f64.into(), 0f64.into(), 1f64.into()]),
         ]))
     }
 
     fn cnot() -> QGate {
         QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(4, &[1f64.into(), 0f64.into(), 0f64.into(), 0f64.into()]),
-            RowDVector::from_row_slice(4, &[0f64.into(), 1f64.into(), 0f64.into(), 0f64.into()]),
-            RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 0f64.into(), 1f64.into()]),
-            RowDVector::from_row_slice(4, &[0f64.into(), 0f64.into(), 1f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(&[1f64.into(), 0f64.into(), 0f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), 1f64.into(), 0f64.into(), 0f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), 0f64.into(), 0f64.into(), 1f64.into()]),
+            RowDVector::from_row_slice(&[0f64.into(), 0f64.into(), 1f64.into(), 0f64.into()]),
         ]))
     }
 
@@ -680,7 +680,6 @@ mod test {
             - &QStateExpr::from_qubits(&[Qubit::ONE, Qubit::ZERO]))
             * std::f64::consts::FRAC_1_SQRT_2;
         let expected = DVector::from_row_slice(
-            4,
             &vec![
                 0f64,
                 std::f64::consts::FRAC_1_SQRT_2,
@@ -700,10 +699,10 @@ mod test {
         let l = Complex64::one();
         let o = Complex64::zero();
         let expected = QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(4, &[l, o, o, o]),
-            RowDVector::from_row_slice(4, &[o, l, o, o]),
-            RowDVector::from_row_slice(4, &[o, o, l, o]),
-            RowDVector::from_row_slice(4, &[o, o, o, l]),
+            RowDVector::from_row_slice(&[l, o, o, o]),
+            RowDVector::from_row_slice(&[o, l, o, o]),
+            RowDVector::from_row_slice(&[o, o, l, o]),
+            RowDVector::from_row_slice(&[o, o, o, l]),
         ]));
         assert_relative_eq!(identity_sqr, expected);
 
@@ -723,10 +722,10 @@ mod test {
         let v = Complex64::new(std::f64::consts::FRAC_1_SQRT_2, 0f64);
         let o = Complex64::zero();
         let expected = QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(4, &[v, o, v, o]),
-            RowDVector::from_row_slice(4, &[o, v, o, v]),
-            RowDVector::from_row_slice(4, &[v, o, -v, o]),
-            RowDVector::from_row_slice(4, &[o, v, o, -v]),
+            RowDVector::from_row_slice(&[v, o, v, o]),
+            RowDVector::from_row_slice(&[o, v, o, v]),
+            RowDVector::from_row_slice(&[v, o, -v, o]),
+            RowDVector::from_row_slice(&[o, v, o, -v]),
         ]));
         assert_relative_eq!(hadamard_identity, expected);
 
@@ -746,10 +745,10 @@ mod test {
         let v = Complex64::new(std::f64::consts::FRAC_1_SQRT_2, 0f64);
         let o = Complex64::zero();
         let expected = QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(4, &[v, v, o, o]),
-            RowDVector::from_row_slice(4, &[v, -v, o, o]),
-            RowDVector::from_row_slice(4, &[o, o, v, v]),
-            RowDVector::from_row_slice(4, &[o, o, v, -v]),
+            RowDVector::from_row_slice(&[v, v, o, o]),
+            RowDVector::from_row_slice(&[v, -v, o, o]),
+            RowDVector::from_row_slice(&[o, o, v, v]),
+            RowDVector::from_row_slice(&[o, o, v, -v]),
         ]));
         assert_relative_eq!(identity_hadamard, expected);
 
@@ -767,10 +766,10 @@ mod test {
         let hadamard_sqr = hadamard.par(&hadamard);
         let v = Complex64::new(0.5f64, 0f64);
         let expected = QGate(DMatrix::from_rows(&[
-            RowDVector::from_row_slice(4, &[v, v, v, v]),
-            RowDVector::from_row_slice(4, &[v, -v, v, -v]),
-            RowDVector::from_row_slice(4, &[v, v, -v, -v]),
-            RowDVector::from_row_slice(4, &[v, -v, -v, v]),
+            RowDVector::from_row_slice(&[v, v, v, v]),
+            RowDVector::from_row_slice(&[v, -v, v, -v]),
+            RowDVector::from_row_slice(&[v, v, -v, -v]),
+            RowDVector::from_row_slice(&[v, -v, -v, v]),
         ]));
         assert_relative_eq!(hadamard_sqr, expected);
 
